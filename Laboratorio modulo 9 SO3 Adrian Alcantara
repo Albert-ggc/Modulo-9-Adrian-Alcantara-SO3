@@ -1,0 +1,173 @@
+PRACTICA 1 - WEBMIN
+=======================================================================
+ACTUALIZAR SISTEMA
+sudo apt update && sudo apt upgrade -y
+
+INSTALAR DEPENDENCIAS
+sudo apt install wget apt-transport-https software-properties-common -y
+
+DESCARGAR WEBMIN
+wget https://prdownloads.sourceforge.net/webadmin/webmin_2.105_all.deb
+
+INSTALAR WEBMIN
+sudo dpkg -i webmin_2.105_all.deb
+
+CORREGIR DEPENDENCIAS
+sudo apt install -f -y
+
+ACCEDER DESDE NAVEGADOR
+https://IP_DEL_SERVIDOR:10000
+
+CONFIGURAR PASSWORD ROOT (SI ES NECESARIO)
+sudo passwd root
+
+============================================================
+PRACTICA 2 - TERRAFORM + DIGITALOCEAN
+===============================================================
+
+INSTALAR TERRAFORM
+sudo apt update && sudo apt upgrade -y
+sudo apt install wget unzip -y
+wget https://releases.hashicorp.com/terraform/1.8.5/terraform_1.8.5_linux_amd64.zip
+unzip terraform_1.8.5_linux_amd64.zip
+sudo mv terraform /usr/local/bin/
+terraform -v
+
+CREAR PROYECTO
+mkdir terraform-do
+cd terraform-do
+nano main.tf
+nano terraform.tfvars
+
+INICIALIZAR
+terraform init
+
+VALIDAR
+terraform plan
+
+CREAR VM
+terraform apply
+yes
+
+CONECTARSE (WINDOWS)
+ssh root@IP_DE_LA_VM
+
+CONECTARSE (KALI CON LLAVE)
+ssh -i ~/.ssh/id_rsa root@IP_DE_LA_VM
+
+COPIAR LLAVE A KALI (SI NO EXISTE)
+mkdir -p ~/.ssh
+nano ~/.ssh/id_rsa
+chmod 600 ~/.ssh/id_rsa
+
+ELIMINAR VM
+terraform destroy
+
+
+========================================================
+PRACTICA 3: INSTALACION Y CONFIGURACION
+==================================================
+
+Instalar Ansible:
+sudo apt update
+sudo apt install ansible -y
+
+Crear usuario en Linux:
+sudo adduser ansible
+sudo usermod -aG sudo ansible
+
+Crear usuario en Windows:
+net user ansible 1234 /add
+net localgroup Administradores ansible /add
+
+Generar clave SSH:
+ssh-keygen -t ed25519 -C "ansible-key"
+cat ~/.ssh/id_ed25519.pub
+
+Configurar SSH en Linux cliente:
+mkdir -p /home/ansible/.ssh
+nano /home/ansible/.ssh/authorized_keys
+chmod 700 /home/ansible/.ssh
+chmod 600 /home/ansible/.ssh/authorized_keys
+chown -R ansible:ansible /home/ansible/.ssh
+
+Configurar SSH en Windows:
+New-Item -Path "C:\ProgramData\ssh\administrators_authorized_keys" -ItemType File
+notepad C:\ProgramData\ssh\administrators_authorized_keys
+
+icacls "C:\ProgramData\ssh\administrators_authorized_keys" /inheritance:r
+icacls "C:\ProgramData\ssh\administrators_authorized_keys" /grant Administradores:F
+
+Restart-Service sshd
+
+Crear inventario:
+sudo mkdir -p /etc/ansible
+sudo nano /etc/ansible/hosts
+
+Contenido del inventario:
+[linux]
+linux1 ansible_host=IP_LINUX ansible_user=ansible
+
+[win]
+win1 ansible_host=IP_WINDOWS ansible_user=ansible ansible_port=22
+
+[win:vars]
+ansible_connection=ssh
+ansible_shell_type=powershell
+ansible_python_interpreter=none
+
+Pruebas:
+ansible linux -m ping
+ansible win -m win_ping
+
+=====================================================================
+PRACTICA 4: COMANDOS AD-HOC
+=====================================================================
+
+Copiar archivo en Windows:
+ansible win -m win_copy -a 'src=C:\Users\ansible\Desktop\prueba.txt dest=C:\Users\ansible\Documents\prueba.txt remote_src=true'
+
+Reiniciar Linux:
+ansible linux -m reboot --become -K
+
+============================================================
+PRACTICA 5: PLAYBOOKS
+============================================================
+
+
+Playbook Windows (notepad.yml):
+- name: Instalar Notepad++ en Windows
+  hosts: win
+  tasks:
+    - name: Instalar Notepad++
+      win_chocolatey:
+        name: notepadplusplus
+        state: present
+
+Ejecutar:
+ansible-playbook notepad.yml
+
+Playbook Linux (nginx.yml):
+- name: Instalar NGINX en Linux
+  hosts: linux
+  become: yes
+  tasks:
+    - name: Instalar nginx
+      apt:
+        name: nginx
+        state: present
+        update_cache: yes
+
+    - name: Iniciar servicio nginx
+      service:
+        name: nginx
+        state: started
+        enabled: yes
+
+Ejecutar:
+ansible-playbook nginx.yml -K
+
+COMPROBACION FINAL
+
+ansible all -m ping
+curl http://IP_LINUX
