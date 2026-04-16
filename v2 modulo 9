@@ -1,0 +1,293 @@
+🚀 PRACTICAS ANSIBLE + TERRAFORM + WEBMIN (VERSIÓN MEJORADA)
+🔹 PRERREQUISITOS GENERALES
+
+Antes de comenzar:
+
+sudo apt update && sudo apt upgrade -y
+sudo apt install wget curl unzip git -y
+
+✔ Tener:
+
+Cuenta en DigitalOcean
+Llave SSH generada (ssh-keygen)
+Conectividad entre máquinas
+============================================================
+PRACTICA 1 - WEBMIN
+============================================================
+🔹 Instalación
+
+sudo apt update && sudo apt upgrade -y
+sudo apt install wget apt-transport-https software-properties-common -y
+
+wget https://prdownloads.sourceforge.net/webadmin/webmin_2.105_all.deb
+
+sudo dpkg -i webmin_2.105_all.deb
+sudo apt install -f -y
+
+🔹 Acceso
+
+https://IP_SERVIDOR:10000
+
+🔹 Configurar acceso root (si aplica)
+
+sudo passwd root
+
+🔹 Funcionalidades a demostrar en Webmin
+Administración de usuarios
+Crear usuario
+Eliminar usuario
+Gestión de servicios
+SSH → Start / Stop / Restart
+Configuración de red
+Configurar IP estática
+Administración de software
+Instalar / actualizar paquetes
+Gestión de archivos
+Editar archivos desde Webmin
+Monitorización
+CPU
+RAM
+Disco
+⚠️ Errores comunes
+
+Error: dpkg falla
+Solución:
+sudo apt install -f -y
+
+Error: No abre el puerto 10000
+Solución:
+sudo ufw allow 10000
+
+============================================================
+PRACTICA 2 - TERRAFORM + DIGITALOCEAN
+============================================================
+🔹 Instalación Terraform
+
+wget https://releases.hashicorp.com/terraform/1.8.5/terraform_1.8.5_linux_amd64.zip
+
+unzip terraform_1.8.5_linux_amd64.zip
+sudo mv terraform /usr/local/bin/
+
+terraform -v
+
+🔹 Configurar Token DigitalOcean
+
+export DO_TOKEN="TU_TOKEN_AQUI"
+
+(Se obtiene desde DigitalOcean → API)
+
+🔹 Crear proyecto
+
+mkdir terraform-do
+cd terraform-do
+
+nano main.tf
+
+🔹 main.tf (LISTO PARA COPIAR)
+
+provider "digitalocean" {
+token = var.do_token
+}
+
+variable "do_token" {}
+
+resource "digitalocean_droplet" "vm" {
+image = "ubuntu-22-04-x64"
+name = "OS3vm"
+region = "nyc1"
+size = "s-1vcpu-1gb"
+ssh_keys = [var.ssh_key]
+}
+
+variable "ssh_key" {}
+
+🔹 terraform.tfvars
+
+nano terraform.tfvars
+
+do_token = "TU_TOKEN"
+ssh_key = "ID_DE_LLAVE_EN_DO"
+
+🔹 Ejecutar
+
+terraform init
+terraform plan
+terraform apply
+
+🔹 Conexión
+
+ssh root@IP_VM
+
+🔹 Eliminar recursos
+
+terraform destroy
+
+⚠️ Errores comunes
+
+Error: SSH key inválida
+✔ Verificar ID en DigitalOcean
+
+Error: No conecta por SSH
+✔ Verificar puerto 22 abierto
+
+============================================================
+PRACTICA 3 - ANSIBLE
+============================================================
+🔹 Instalación
+
+sudo apt install ansible -y
+
+🔹 Crear usuario ansible
+
+EN LINUX:
+
+sudo adduser ansible
+sudo usermod -aG sudo ansible
+
+🔹 Configurar acceso SSH sin contraseña
+
+ssh-keygen -t ed25519
+
+ssh-copy-id ansible@IP_LINUX
+
+🔹 Configuración manual alternativa
+
+mkdir -p /home/ansible/.ssh
+nano /home/ansible/.ssh/authorized_keys
+
+chmod 700 /home/ansible/.ssh
+chmod 600 /home/ansible/.ssh/authorized_keys
+
+chown -R ansible:ansible /home/ansible/.ssh
+
+🔹 Windows (IMPORTANTE)
+
+Instalar OpenSSH Server
+
+PowerShell como admin:
+
+net user ansible 1234 /add
+net localgroup Administradores ansible /add
+
+New-Item -Path "C:\ProgramData\ssh\administrators_authorized_keys" -ItemType File
+
+notepad C:\ProgramData\ssh\administrators_authorized_keys
+
+Pegar clave pública
+
+icacls "C:\ProgramData\ssh\administrators_authorized_keys" /inheritance:r
+icacls "C:\ProgramData\ssh\administrators_authorized_keys" /grant Administradores:F
+
+Restart-Service sshd
+
+🔹 Inventario
+
+sudo nano /etc/ansible/hosts
+
+Contenido:
+
+[linux]
+linux1 ansible_host=IP_LINUX ansible_user=ansible
+
+[win]
+win1 ansible_host=IP_WINDOWS ansible_user=ansible ansible_port=22
+
+[win:vars]
+ansible_connection=ssh
+ansible_shell_type=powershell
+ansible_python_interpreter=none
+
+🔹 Pruebas
+
+ansible linux -m ping
+ansible win -m ping
+
+⚠️ Errores comunes
+
+Error: Permission denied SSH
+✔ Revisar claves
+
+Error: Windows no responde
+✔ Verificar servicio sshd
+
+============================================================
+PRACTICA 4 - COMANDOS AD-HOC
+============================================================
+🔹 Copiar archivo en Windows
+
+ansible win -m win_copy -a "src=C:\Users\ansible\Desktop\prueba.txt dest=C:\Users\ansible\Documents\prueba.txt remote_src=true"
+
+🔹 Reiniciar Linux
+
+ansible linux -m reboot --become -K
+
+⚠️ Errores comunes
+
+Error: win_copy falla
+✔ Verificar rutas Windows
+
+============================================================
+PRACTICA 5 - PLAYBOOKS
+============================================================
+🔹 Playbook Windows (notepad.yml)
+
+nano notepad.yml
+
+Contenido:
+
+name: Instalar Notepad++ en Windows
+hosts: win
+tasks:
+name: Instalar Notepad++
+win_chocolatey:
+name: notepadplusplus
+state: present
+🔹 Instalar Chocolatey (REQUERIDO)
+
+Set-ExecutionPolicy Bypass -Scope Process -Force
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1
+'))
+
+🔹 Ejecutar
+
+ansible-playbook notepad.yml
+
+🔹 Playbook Linux (nginx.yml)
+
+nano nginx.yml
+
+Contenido:
+
+name: Instalar NGINX en Linux
+hosts: linux
+become: yes
+tasks:
+name: Instalar nginx
+apt:
+name: nginx
+state: present
+update_cache: yes
+name: Iniciar servicio nginx
+service:
+name: nginx
+state: started
+enabled: yes
+🔹 Ejecutar
+
+ansible-playbook nginx.yml -K
+
+🔹 Verificación final
+
+ansible all -m ping
+curl http://IP_LINUX
+
+🧠 CONCLUSIÓN
+
+Se implementó un entorno completo de automatización utilizando:
+
+Webmin para administración web
+Terraform para infraestructura como código
+Ansible para automatización y gestión remota
+
+Este conjunto de herramientas permite administrar sistemas de forma escalable, automatizada y eficiente, tal como se realiza en entornos profesionales.
